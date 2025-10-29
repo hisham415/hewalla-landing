@@ -75,26 +75,15 @@ export default function HeroTransfer({
         {/* Visual stage (absolute positioning area) */}
         <div className="relative mt-10 sm:mt-14">
           {/* Fixed responsive height so art never jumps while loading */}
-          <div className="relative isolate h-[520px] sm:h-[560px] lg:h-[640px]">
+          <div className="relative flex items-center justify-center">
             {/* Phone */}
             <img
               src={phoneSrc}
               alt={phoneAlt}
               className="
-                absolute
-                left-1/2 -translate-x-1/2
-                lg:left-[58%] lg:-translate-x-1/2
-                top-[8%] lg:top-[5%]
-                w-[min(78vw,360px)]
-                sm:w-[min(64vw,420px)]
-                lg:w-[min(34vw,520px)]
-                drop-shadow-[0_30px_60px_rgba(2,6,23,0.18)]
-                will-change-transform
-                select-none
               "
               draggable={false}
               loading="eager"
-              sizes="(min-width:1024px) 34vw, (min-width:640px) 64vw, 78vw"
               decoding="async"
             />
 

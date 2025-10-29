@@ -24,26 +24,22 @@ export default function App() {
             onSecondaryHref="/transfer"
             primaryLabel="Create an account"
             secondaryLabel="Send money now"
-            phoneSrc="/mobile.png"
+            phoneSrc="/Mobile--Mockup.svg"
             phoneAlt="Hewala transfer screen"
             floaters={[
               {
-                // Left card (send/receive)
                 src: "/Currency-check2.svg",
                 alt: "You will send exactly / Recipient gets",
                 // MOBILE: left-top above phone
-                mobile: "left-[6%] top-[8%] w-[58vw] rotate-[6deg]",
+                mobile: "left-[30%] bottom-[100%] rotate-[-30deg]",
                 // DESKTOP: left of phone, near top
-                desktop: "left-[4%] top-[6%] w-[360px] rotate-[-6deg]",
+                desktop: "left-[4%] top-[6%] rotate-[-6deg]",
               },
               {
-                // Right ticket (paying / arrives)
                 src: "/Currency-check.svg",
                 alt: "Paying with • Arrives",
-                // MOBILE: bottom-left under phone
-                mobile: "left-[3%] bottom-[4%] w-[52vw] rotate-[-8deg]",
-                // DESKTOP: right-bottom of phone
-                desktop: "right-[8%] bottom-[8%] w-[340px] rotate-[8deg]",
+                mobile: "right-[20%] bottom-[-20%] w-[52vw] rotate-[-8deg]",
+                desktop: "right-[8%] bottom-[%] w-[340px] rotate-[8deg]",
               },
             ]}
           />
