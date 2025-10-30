@@ -4,6 +4,7 @@ import GlobalMovement from "./components/GlobalMovement";
 import HeroTransfer from "./components/HeroTransfer";
 import ReceiveMethods from "./components/ReceiveMethods";
 import StickyHeader from "./components/StickyHeader";
+import { LOGIN_HREF, SIGNUP_HREF } from "./config/links";
 
 export default function App() {
   return (
@@ -11,8 +12,8 @@ export default function App() {
       <StickyHeader
         logoSrc="/Hewala.svg"
         brand="Hewala"
-        loginHref="/auth/login"
-        signupHref="/auth/signup"
+        loginHref={LOGIN_HREF}
+        signupHref={SIGNUP_HREF}
       />
 
       <main className="bg-white min-h-dvh overflow-x-clip">
