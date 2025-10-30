@@ -30,18 +30,18 @@ jobs:
       - name: Copy Docker image to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
+          host: www.hewalla.com
+          username: root
+          password: "*K2vTuuUJ}@dJE24"
           source: "hewalla-landing.tar.gz,nginx-site.conf"
           target: "/opt/hewalla-landing"
 
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
+          host: www.hewalla.com
+          username: root
+          password: "*K2vTuuUJ}@dJE24"
           script: |
             cd /opt/hewalla-landing
             
