@@ -12,6 +12,10 @@ RUN npm ci
 # Copy source files
 COPY . .
 
+# Accept build argument and set as environment variable
+ARG VITE_APP_BASE_URL
+ENV VITE_APP_BASE_URL=${VITE_APP_BASE_URL}
+
 # Build the app
 RUN npm run build
 
