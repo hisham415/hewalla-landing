@@ -1,0 +1,189 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t hewalla-landing:latest .
+
+      - name: Save Docker image
+        run: |
+          docker save hewalla-landing:latest | gzip > hewalla-landing.tar.gz
+
+      - name: Copy Docker image to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          source: "hewalla-landing.tar.gz,nginx-site.conf"
+          target: "/opt/hewalla-landing"
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            cd /opt/hewalla-landing
+            
+            # Load the new image
+            docker load < hewalla-landing.tar.gz
+            
+            # Stop and remove old container if running
+            docker stop hewalla-landing 2>/dev/null || true
+            docker rm -f hewalla-landing 2>/dev/null || true
+            
+            # Start new container directly with docker run
+            docker run -d \
+              --name hewalla-landing \
+              --restart unless-stopped \
+              -p 8002:80 \
+              -p 8444:443 \
+              -v /etc/ssl/certs/hewalla.com:/etc/ssl/certs/hewalla.com:ro \
+              -v /etc/ssl/private:/etc/ssl/private:ro \
+              -e NODE_ENV=production \
+              hewalla-landing:latest
+            
+            # Wait for container to start
+            sleep 5
+            
+            # Verify container is running
+            if ! docker ps | grep -q hewalla-landing; then
+              echo "ERROR: Container failed to start!"
+              docker logs hewalla-landing
+              exit 1
+            fi
+            
+            echo "Container started successfully"
+            docker ps | grep hewalla-landing
+            
+            # Configure nginx site - append to existing hewalla.com config
+            echo "Configuring nginx..."
+            
+            # Check if landing.hewalla.com block already exists
+            if ! grep -q "landing.hewalla.com" /etc/nginx/sites-available/hewalla.com; then
+              echo "Adding landing.hewalla.com to hewalla.com nginx config..."
+              cat /opt/hewalla-landing/nginx-site.conf >> /etc/nginx/sites-available/hewalla.com
+            else
+              echo "Updating existing landing.hewalla.com configuration..."
+              # Remove old landing.hewalla.com blocks and append new one
+              sed -i '/# HTTP server - redirect to HTTPS/,/^}$/{ /server_name landing.hewalla.com/,/^}$/d; }' /etc/nginx/sites-available/hewalla.com
+              sed -i '/# HTTPS server for Landing Page/,/^}$/d' /etc/nginx/sites-available/hewalla.com
+              cat /opt/hewalla-landing/nginx-site.conf >> /etc/nginx/sites-available/hewalla.com
+            fi
+            
+            # Test nginx configuration
+            echo "Testing nginx configuration..."
+            nginx -t
+            
+            if [ $? -ne 0 ]; then
+              echo "ERROR: nginx configuration test failed!"
+              exit 1
+            fi
+            
+            # Reload nginx
+            echo "Reloading nginx..."
+            systemctl reload nginx
+            
+            # Verify nginx reloaded successfully
+            if [ $? -eq 0 ]; then
+              echo "✅ Nginx reloaded successfully"
+            else
+              echo "ERROR: Nginx reload failed!"
+              systemctl status nginx
+              exit 1
+            fi
+            
+            # Clean up
+            rm hewalla-landing.tar.gz
+            
+            # Remove dangling images
+            docker image prune -f
+            
+            echo "Deployment completed successfully!"
+            echo "Landing page available at: https://landing.hewalla.com"
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            echo "=== Checking Docker container status ==="
+            if docker ps | grep -q hewalla-landing; then
+              echo "✅ Container 'hewalla-landing' is running"
+              docker ps | grep hewalla-landing
+            else
+              echo "❌ Container 'hewalla-landing' is NOT running!"
+              echo "Checking all containers:"
+              docker ps -a
+              exit 1
+            fi
+            
+            echo ""
+            echo "=== Testing container health ==="
+            # Test if the container responds on port 8002
+            if curl -f http://localhost:8002 -o /dev/null -s; then
+              echo "✅ Container responding on port 8002"
+            else
+              echo "⚠️  Container not responding on port 8002"
+              echo "Container logs:"
+              docker logs hewalla-landing --tail 50
+            fi
+            
+            echo ""
+            echo "=== Checking nginx configuration ==="
+            echo "Checking hewalla.com config:"
+            if grep -q "landing.hewalla.com" /etc/nginx/sites-available/hewalla.com; then
+              echo "✅ landing.hewalla.com found in hewalla.com config"
+            else
+              echo "❌ landing.hewalla.com NOT found in hewalla.com config!"
+            fi
+            
+            echo ""
+            echo "Testing nginx config:"
+            nginx -t
+            
+            echo ""
+            echo "=== Testing HTTPS endpoint ==="
+            sleep 3
+            
+            # Test landing.hewalla.com with verbose output
+            echo "Testing landing.hewalla.com:"
+            CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://landing.hewalla.com/)
+            if [ "$CODE" = "200" ]; then
+              echo "✅ landing.hewalla.com returns 200"
+            else
+              echo "⚠️  landing.hewalla.com returns ${CODE}"
+              echo "Full response:"
+              curl -k -I https://landing.hewalla.com/ 2>&1 | head -20
+            fi
+            
+            echo ""
+            echo "=== Testing HTTP to HTTPS redirect ==="
+            if curl -I -s http://landing.hewalla.com/ | grep -q "301\|302"; then
+              echo "✅ HTTP to HTTPS redirect working"
+            else
+              echo "⚠️  HTTP to HTTPS redirect not working"
+            fi
+            
+            echo ""
+            echo "=== Deployment verification complete! ==="
