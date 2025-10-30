@@ -78,6 +78,38 @@ jobs:
             
             # Configure nginx site
             echo "Configuring nginx..."
+            
+            # Clean up any malformed landing.hewalla.com config from hewalla.com file
+            # This removes any content that was incorrectly appended in previous deployments
+            if [ -f /etc/nginx/sites-available/hewalla.com ]; then
+              # Count server blocks - if more than expected, clean it
+              SERVER_COUNT=$(grep -c "^server {" /etc/nginx/sites-available/hewalla.com || echo "0")
+              if [ "$SERVER_COUNT" -gt 2 ]; then
+                echo "Found extra server blocks in hewalla.com, cleaning up..."
+                # Remove any line containing landing.hewalla.com and the server blocks around it
+                # Create a Python script to properly parse and clean the file
+                python3 << 'PYTHON_SCRIPT'
+import re
+
+with open('/etc/nginx/sites-available/hewalla.com', 'r') as f:
+    content = f.read()
+
+# Remove any server blocks containing landing.hewalla.com
+# Pattern to match server blocks
+pattern = r'(?:# HTTP server[^\n]*\n)?server\s*{[^}]*landing\.hewalla\.com[^}]*}(?:\s*\n)?'
+cleaned = re.sub(pattern, '', content, flags=re.DOTALL)
+
+# Also remove the "# HTTPS server for Landing Page" comment and its block
+pattern2 = r'# HTTPS server for Landing Page\s*\nserver\s*{(?:[^{}]|{[^{}]*})*}'
+cleaned = re.sub(pattern2, '', cleaned, flags=re.DOTALL)
+
+with open('/etc/nginx/sites-available/hewalla.com', 'w') as f:
+    f.write(cleaned)
+PYTHON_SCRIPT
+              fi
+            fi
+            
+            # Create/update the standalone landing config file
             cp /opt/hewalla-landing/nginx-site.conf /etc/nginx/sites-available/hewalla-landing
             ln -sf /etc/nginx/sites-available/hewalla-landing /etc/nginx/sites-enabled/hewalla-landing
             
@@ -85,6 +117,8 @@ jobs:
             echo "Testing nginx configuration..."
             if ! nginx -t; then
               echo "ERROR: nginx configuration test failed!"
+              echo "Showing hewalla-landing config:"
+              cat /etc/nginx/sites-available/hewalla-landing
               exit 1
             fi
             
