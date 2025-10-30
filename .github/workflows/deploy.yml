@@ -76,26 +76,14 @@ jobs:
             echo "Container started successfully"
             docker ps | grep hewalla-landing
             
-            # Configure nginx site - append to existing hewalla.com config
+            # Configure nginx site
             echo "Configuring nginx..."
-            
-            # Check if landing.hewalla.com block already exists
-            if ! grep -q "landing.hewalla.com" /etc/nginx/sites-available/hewalla.com; then
-              echo "Adding landing.hewalla.com to hewalla.com nginx config..."
-              cat /opt/hewalla-landing/nginx-site.conf >> /etc/nginx/sites-available/hewalla.com
-            else
-              echo "Updating existing landing.hewalla.com configuration..."
-              # Remove old landing.hewalla.com blocks and append new one
-              sed -i '/# HTTP server - redirect to HTTPS/,/^}$/{ /server_name landing.hewalla.com/,/^}$/d; }' /etc/nginx/sites-available/hewalla.com
-              sed -i '/# HTTPS server for Landing Page/,/^}$/d' /etc/nginx/sites-available/hewalla.com
-              cat /opt/hewalla-landing/nginx-site.conf >> /etc/nginx/sites-available/hewalla.com
-            fi
+            cp /opt/hewalla-landing/nginx-site.conf /etc/nginx/sites-available/hewalla-landing
+            ln -sf /etc/nginx/sites-available/hewalla-landing /etc/nginx/sites-enabled/hewalla-landing
             
             # Test nginx configuration
             echo "Testing nginx configuration..."
-            nginx -t
-            
-            if [ $? -ne 0 ]; then
+            if ! nginx -t; then
               echo "ERROR: nginx configuration test failed!"
               exit 1
             fi
@@ -125,9 +113,9 @@ jobs:
       - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
+          host: www.hewalla.com
+          username: root
+          password: "*K2vTuuUJ}@dJE24"
           script: |
             echo "=== Checking Docker container status ==="
             if docker ps | grep -q hewalla-landing; then
@@ -153,11 +141,11 @@ jobs:
             
             echo ""
             echo "=== Checking nginx configuration ==="
-            echo "Checking hewalla.com config:"
-            if grep -q "landing.hewalla.com" /etc/nginx/sites-available/hewalla.com; then
-              echo "✅ landing.hewalla.com found in hewalla.com config"
+            echo "Checking if hewalla-landing site is enabled:"
+            if [ -L /etc/nginx/sites-enabled/hewalla-landing ]; then
+              echo "✅ hewalla-landing is symlinked"
             else
-              echo "❌ landing.hewalla.com NOT found in hewalla.com config!"
+              echo "❌ hewalla-landing is NOT symlinked!"
             fi
             
             echo ""
