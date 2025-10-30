@@ -23,7 +23,6 @@ export default function GlobalMovement({
       className="relative bg-white"
     >
       <div className={`px-4 sm:px-6 lg:px-10 py-10 `}>
-        {/* Artwork */}
         <figure className="flex justify-center">
           <img
             src={artSrc}
@@ -37,7 +36,6 @@ export default function GlobalMovement({
           />
         </figure>
 
-        {/* Headline */}
         <h2
           id="global-movement-title"
           className="
@@ -52,7 +50,7 @@ export default function GlobalMovement({
         </h2>
 
         {/* Supporting copy */}
-        <p className="mt-4 text-primary-digital-black text-base font-medium sm:text-lg md:text-xl lg:text-xl">
+        <p className="mt-4 text-primary-digital-black text-base font-medium sm:text-lg md:text-xl lg:text-xl text-center">
           {subtitle}
         </p>
       </div>
